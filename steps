@@ -13,7 +13,8 @@ Go to Terminal
 
 pip install cmake
 pip install face-recognition
-pip install streamlit(version 1.25.0) opencv-python
+pip install streamlit(version 1.25.0) 
+pip install opencv-python
 pip install streamlit_option_menu
 
 
