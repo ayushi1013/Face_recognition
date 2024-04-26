@@ -49,8 +49,8 @@ def main():
     ###################################################
 
     selected_menu = option_menu(None,
-        ['Visitor Validation', 'Real-time Detection', 'View Visitor History', 'Add to Database'],
-        icons=['camera', "camera", "clock-history", 'person-plus'],
+        ['Visitor Validation', 'Real-time Detection', 'Real-time Detection New Tab', 'View Visitor History', 'Add to Database'],
+        icons=['camera', "webcam", "webcam", "clock-history", 'person-plus'],
         ## icons from website: https://icons.getbootstrap.com/
         menu_icon="cast", default_index=0, orientation="horizontal")
 
@@ -117,7 +117,7 @@ def main():
                         ## Filtering for similarity beyond threshold
                         similarity_threshold = col2.slider('Select Threshold for Similarity',
                                                             min_value=0.0, max_value=1.0,
-                                                            value=0.5)
+                                                            value=0.3)
                                                         ## check for similarity confidence greater than this threshold
 
                         flag_show = False
@@ -169,12 +169,23 @@ def main():
 
                                         ## Save Face Region of Interest information to the list
                                         rois.append(image_array_copy[top:bottom, left:right].copy())
+                                        
+                                        confidence = dataframe_new.loc[0, 'similarity']*100
+                                        # st.write(f"confidence : {confidence}")
+                                        color = (0, 0, 255)
+                                        if confidence is not None:
+                                            if confidence>= 85:
+                                                color = (0, 255, 0)
+                                            elif confidence >= 75:
+                                                color = (0, 165, 255)
+                                            else:
+                                                color = (0, 0, 255)
 
                                         # Draw a Rectangle Red box around the face and label it
-                                        cv2.rectangle(image_array_copy, (left, top), (right, bottom), COLOR_DARK, 2)
-                                        cv2.rectangle(image_array_copy, (left, bottom + 35), (right, bottom), COLOR_DARK, cv2.FILLED)
+                                        cv2.rectangle(image_array_copy, (left, top), (right, bottom), color, 2) # COLOR_DARK
+                                        cv2.rectangle(image_array_copy, (left, bottom + 35), (right, bottom), color, cv2.FILLED) # COLOR_DARK
                                         font = cv2.FONT_HERSHEY_DUPLEX
-                                        cv2.putText(image_array_copy, f"#{dataframe_new.loc[0, 'Name']}", (left + 5, bottom + 25), font, .55, COLOR_WHITE, 1)
+                                        cv2.putText(image_array_copy, f"#{dataframe_new.loc[0, 'Name']} {confidence}", (left + 5, bottom + 25), font, .55, COLOR_DARK, 1)
 
                                         ## Getting Name of Visitor
                                         name_visitor = dataframe_new.loc[0, 'Name']
@@ -194,114 +205,140 @@ def main():
                         st.error('No human face detected.')
 
     if selected_menu == 'Real-time Detection':
-        cap = cv2.VideoCapture(0)
-        frame_placeholder = st.empty()
-        stop_button_pressed = st.button("Stop")
+        start_button = st.button('Start')
+        if start_button:
+            cap = cv2.VideoCapture(0)
+            frame_placeholder = st.empty()
+            stop_button_pressed = st.button("Stop")
 
-        while cap.isOpened() and not stop_button_pressed:
-            # Grab a single frame of video
-            ret, frame = cap.read()
-            if not ret:
-                st.write("Video Capture Ended")
-                break
+            while cap.isOpened() and not stop_button_pressed:
+                # Grab a single frame of video
+                ret, frame = cap.read()
+                if not ret:
+                    st.write("Video Capture Ended")
+                    break
+                
+                # frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+                image_array = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image_array_copy = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            image_array = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image_array_copy = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # Detect faces in the loaded image
+                max_faces   = 0
+                rois        = []  # region of interests (arrays of face areas)
 
-            # Detect faces in the loaded image
-            max_faces   = 0
-            rois        = []  # region of interests (arrays of face areas)
+                ## To get location of Face from Image
+                face_locations  = face_recognition.face_locations(image_array)
+                ## To encode Image to numeric format
+                encodesCurFrame = face_recognition.face_encodings(image_array, face_locations)
 
-            ## To get location of Face from Image
-            face_locations  = face_recognition.face_locations(image_array)
-            ## To encode Image to numeric format
-            encodesCurFrame = face_recognition.face_encodings(image_array, face_locations)
+                ## Generating Rectangle Red box over the Image
+                for idx, (top, right, bottom, left) in enumerate(face_locations):
+                    # Save face's Region of Interest
+                    rois.append(image_array[top:bottom, left:right].copy())
 
-            ## Generating Rectangle Red box over the Image
-            for idx, (top, right, bottom, left) in enumerate(face_locations):
-                # Save face's Region of Interest
-                rois.append(image_array[top:bottom, left:right].copy())
-
-                # Draw a box around the face and label it
-                cv2.rectangle(image_array, (left, top), (right, bottom), COLOR_DARK, 2)
-                cv2.rectangle(image_array, (left, bottom + 35), (right, bottom), COLOR_DARK, cv2.FILLED)
-                font = cv2.FONT_HERSHEY_DUPLEX
-                cv2.putText(image_array, f"#{idx}", (left + 5, bottom + 25), font, .55, COLOR_WHITE, 1)
+                    # Draw a box around the face and label it
+                    cv2.rectangle(image_array, (left, top), (right, bottom), COLOR_DARK, 2)
+                    cv2.rectangle(image_array, (left, bottom + 35), (right, bottom), COLOR_DARK, cv2.FILLED)
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    cv2.putText(image_array, f"#{idx}", (left + 5, bottom + 25), font, .55, COLOR_WHITE, 1)
 
 
-            ## Number of Faces identified
-            max_faces = len(face_locations)
+                ## Number of Faces identified
+                max_faces = len(face_locations)
 
-            if max_faces > 0:
-                col1, col2 = st.columns(2)
+                if max_faces > 0:
+                    col1, col2 = st.columns(2)
 
-                # select selected faces in the picture
-                face_idxs = range(max_faces) 
+                    # select selected faces in the picture
+                    face_idxs = range(max_faces) 
 
-                ## Filtering for similarity beyond threshold
-                similarity_threshold = 0.5 
+                    ## Filtering for similarity beyond threshold
+                    similarity_threshold = 0.5 
 
-                flag_show = False
+                    flag_show = False
 
-                if (len(face_idxs)>0):
-                    dataframe_new = pd.DataFrame()
+                    if (len(face_idxs)>0):
+                        dataframe_new = pd.DataFrame()
 
-                    ## Iterating faces one by one
-                    for face_idx in face_idxs:
-                        ## Getting Region of Interest for that Face
-                        roi = rois[face_idx]
+                        ## Iterating faces one by one
+                        for face_idx in face_idxs:
+                            ## Getting Region of Interest for that Face
+                            roi = rois[face_idx]
 
-                        # initial database for known faces
-                        database_data = initialize_data()
+                            # initial database for known faces
+                            database_data = initialize_data()
 
-                        ## Getting Available information from Database
-                        face_encodings  = database_data[COLS_ENCODE].values
-                        dataframe       = database_data[COLS_INFO]
+                            ## Getting Available information from Database
+                            face_encodings  = database_data[COLS_ENCODE].values
+                            dataframe       = database_data[COLS_INFO]
 
-                        # Comparing ROI to the faces available in database and finding distances and similarities
-                        faces = face_recognition.face_encodings(roi)
+                            # Comparing ROI to the faces available in database and finding distances and similarities
+                            faces = face_recognition.face_encodings(roi)
 
-                        
-                        face_to_compare = faces[0]
-                        ## Comparing Face with available information from database
-                        dataframe['distance'] = face_recognition.face_distance(face_encodings,
-                                                                            face_to_compare)
-                        dataframe['distance'] = dataframe['distance'].astype(float)
+                            if len(faces) < 1:
+                                ## Face could not be processed
+                                # st.error(f'Please Try Again for face#{face_idx}!')
+                                pass
+                            else:
+                                face_to_compare = faces[0]
+                                ## Comparing Face with available information from database
+                                dataframe['distance'] = face_recognition.face_distance(face_encodings,
+                                                                                    face_to_compare)
+                                dataframe['distance'] = dataframe['distance'].astype(float)
 
-                        dataframe['similarity'] = dataframe.distance.apply(
-                            lambda distance: f"{face_distance_to_conf(distance):0.2}")
-                        dataframe['similarity'] = dataframe['similarity'].astype(float)
+                                dataframe['similarity'] = dataframe.distance.apply(
+                                    lambda distance: f"{face_distance_to_conf(distance):0.2}")
+                                dataframe['similarity'] = dataframe['similarity'].astype(float)
 
-                        dataframe_new = dataframe.drop_duplicates(keep='first')
-                        dataframe_new.reset_index(drop=True, inplace=True)
-                        dataframe_new.sort_values(by="similarity", ascending=True)
+                                dataframe_new = dataframe.drop_duplicates(keep='first')
+                                dataframe_new.reset_index(drop=True, inplace=True)
+                                dataframe_new.sort_values(by="similarity", ascending=True)
 
-                        dataframe_new = dataframe_new[dataframe_new['similarity'] > similarity_threshold].head(1)
-                        dataframe_new.reset_index(drop=True, inplace=True)
+                                dataframe_new = dataframe_new[dataframe_new['similarity'] > similarity_threshold].head(1)
+                                dataframe_new.reset_index(drop=True, inplace=True)
 
-                        if dataframe_new.shape[0]>0:
-                            (top, right, bottom, left) = (face_locations[face_idx])
+                                if dataframe_new.shape[0]>0:
+                                    (top, right, bottom, left) = (face_locations[face_idx])
 
-                            ## Save Face Region of Interest information to the list
-                            rois.append(image_array_copy[top:bottom, left:right].copy())
+                                    ## Save Face Region of Interest information to the list
+                                    rois.append(image_array_copy[top:bottom, left:right].copy())
 
-                            # Draw a Rectangle Red box around the face and label it
-                            cv2.rectangle(image_array_copy, (left, top), (right, bottom), COLOR_DARK, 2)
-                            cv2.rectangle(image_array_copy, (left, bottom + 35), (right, bottom), COLOR_DARK, cv2.FILLED)
-                            font = cv2.FONT_HERSHEY_DUPLEX
-                            cv2.putText(image_array_copy, f"#{dataframe_new.loc[0, 'Name']}", (left + 5, bottom + 25), font, .55, COLOR_WHITE, 1)
+                                    confidence = dataframe_new.loc[0, 'similarity']*100
 
-                            flag_show = True
+                                    if confidence>= 85:
+                                        color = (0, 255, 0)
+                                    elif confidence >= 75:
+                                        color = (0, 165, 255)
+                                    else:
+                                        color = (0, 0, 255)
 
-            # Display the resulting image
-            frame_placeholder.image(image_array_copy)
+                                    # Draw a Rectangle Red box around the face and label it
+                                    cv2.rectangle(image_array_copy, (left, top), (right, bottom), color, 2)
+                                    cv2.rectangle(image_array_copy, (left, bottom + 35), (right, bottom), color, cv2.FILLED)
+                                    font = cv2.FONT_HERSHEY_DUPLEX
+                                    cv2.putText(image_array_copy, f"#{dataframe_new.loc[0, 'Name']} {confidence}", (left + 5, bottom + 25), font, .55, COLOR_DARK, 1)
 
-            if cv2.waitKey(1) & 0xFF == ord("q") or stop_button_pressed:
-                break
+                                    flag_show = True
 
-        # Release handle to the webcam
-        cap.release()
-        cv2.destroyAllWindows()
+                # Display the resulting image
+                frame_placeholder.image(image_array_copy)
+
+                if cv2.waitKey(1) & 0xFF == ord("q") or stop_button_pressed:
+                    break
+
+            # Release handle to the webcam
+            cap.release()
+            cv2.destroyAllWindows()
+
+    if selected_menu == 'Real-time Detection New Tab':
+        # Run face recognition
+        fr = FaceRecognition()
+        
+        start_button = st.button('Start')
+        
+        if start_button:
+            fr.process_current_frame = True
+            fr.run_recognition()
 
 
     if selected_menu == 'View Visitor History':
@@ -309,6 +346,9 @@ def main():
 
 
     if selected_menu == 'Add to Database':
+        required_images = 4
+        st.write(f"Please upload or click {required_images} images.")
+
         col1, col2, col3 = st.columns(3)
 
         face_name  = col1.text_input('Name:', '')
@@ -318,11 +358,8 @@ def main():
                                     options=["Upload a Picture",
                                             "Click a picture"])
             
-            required_images = 2
             image_counter = 0
             image_arrays = []
-
-            st.write(f"Please upload or click {required_images} images.")
             
             if pic_option == 'Upload a Picture':
                 unique_key = f"{face_name}_upload_{image_counter}"
@@ -334,7 +371,6 @@ def main():
                     image_array = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                     image_arrays.append(image_array)
                     image_counter += 1
-
                 #st.session_state.pop(unique_key)
 
             elif pic_option == 'Click a picture':
@@ -346,7 +382,7 @@ def main():
                     image_array = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                     image_arrays.append(image_array)
                     image_counter += 1
-                #st.session_state.pop(unique_key)
+
 
             while (img_file_buffer is not None) & (image_counter < required_images):
                 if pic_option == 'Upload a Picture':
@@ -360,6 +396,7 @@ def main():
                         image_arrays.append(image_array)
                         image_counter += 1
 
+
                 elif pic_option == 'Click a picture':
                     unique_key = f"{face_name}_click_{image_counter}"
                     img_file_buffer = col3.camera_input(f"Click a picture ({unique_key})", key=unique_key)
@@ -370,7 +407,8 @@ def main():
                         image_arrays.append(image_array)
                         image_counter += 1
 
-            if st.button('Click to Save and Process!'):
+            # if st.button('Click to Save and Process!'):
+            if image_counter == required_images:
                 for i, image_array in enumerate(image_arrays):
                     with open(os.path.join(VISITOR_DB,
                                         f'{face_name}_{i}.jpg'), 'wb') as file:
@@ -387,8 +425,8 @@ def main():
 
                     DB = initialize_data()
                     add_data_db(df_new)
-
-                # st.success('Images Saved and Processed Successfully!')
+                    
+                st.success('Images Saved and Processed Successfully!')
 
 #######################################################
 if __name__ == "__main__":
