@@ -9,6 +9,7 @@ import face_recognition
 import numpy as np
 from PIL import Image
 import math   
+import tempfile
 ########################################################################################################################
 # The Root Directory of the project
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -218,7 +219,7 @@ class FaceRecognition:
                         self.face_locations = face_recognition.face_locations(rgb_small_frame)
                         self.face_encodings = face_recognition.face_encodings(rgb_small_frame, self.face_locations)
                         self.face_names = []
-                        self.face_confidences = []
+                        self.face_confidences = [] 
 
                     for face_encoding in self.face_encodings:
                         matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
