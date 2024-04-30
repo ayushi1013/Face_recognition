@@ -1,6 +1,6 @@
 pip install face-recognition
 
-if error in face_recognition
+if error in installing face_recognition library
 Go to Terminal
     ## for Python 3.8 64 bit
     pip install .\Dlib_Windows_Python3.x-main\dlib-19.19.0-cp38-cp38-win_amd64.whl
